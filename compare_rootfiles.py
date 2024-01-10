@@ -266,7 +266,7 @@ def main():
             tf1.Close()
             tf2.Close()
             print('ERROR: no keys matching', args.plot.pattern)
-            return CLARG_ERROR.value  # User specified a regex which does not match anything
+            return ExitStatus.CLARG_ERROR.value  # User specified a regex which does not match anything
         print('... of which matching regex', args.plot.pattern, '=', Colour.green(str(len(matching_keys))))
 
     if(args.plot_exclude is not None):
@@ -277,7 +277,7 @@ def main():
             tf1.Close()
             tf2.Close()
             print('ERROR: al keys excluded by', args.plot_exclude.pattern)
-            return CLARG_ERROR.value
+            return ExitStatus.CLARG_ERROR.value
         print('... of which not matching regex', args.plot_exclude.pattern, '=', Colour.green(str(len(matching_keys))))
     print()
 
