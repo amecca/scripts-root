@@ -18,6 +18,9 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ################################################################################
 
+import os
+import ROOT
+
 class TFileContext(object):
     def __init__(self, *args):
         self.tfile = ROOT.TFile(*args)
