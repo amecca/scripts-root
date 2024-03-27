@@ -97,12 +97,12 @@ def compare_plot(h1, h2, verbosity=0, **kwargs):
 
     if((print_wrong_plot or print_good_plot) and not print_every_bin):
         if(not ok_content):
-            integral1 = h1.Integral(0, -1)
-            integral2 = h2.Integral(0, -1)
+            integral1 = h1.Integral(*[0, -1]*h1.GetDimension())
+            integral2 = h2.Integral(*[0, -1]*h1.GetDimension())
             if(integral1 == integral2):
                 print('{:48s} DIFFERENT!  But same integral: {:6.3g}'.format(name, integral1))
             else:
-                print('{:48s} DIFFERENT!  Integral --> h1: {:6.3g} - h2: {:6.3g}  ({:+4.3g}%)'.format(name, integral1, integral2, 100*(integral2/integral1 - 1)))
+                print('{:48s} DIFFERENT!  Integral --> h1: {:6.3g} - h2: {:6.3g}  ({:+6.3g} = {:+4.3g}%)'.format(name, integral1, integral2, integral2-integral1, 100*(integral2/integral1 - 1)))
         elif(print_good_plot):
             print('{:48s} equal     '.format(name)) #  ' Integrals --> h1: {:.2g} - h2: {:.2g}'.format(plot, h1.Integral(0, -1), h2.Integral(0, -1)))
 
