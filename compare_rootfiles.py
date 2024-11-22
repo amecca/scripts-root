@@ -62,15 +62,17 @@ def compare_plot(h1, h2, verbosity=0, **kwargs):
         return
 
     if(not (h1.GetDimension() == h2.GetDimension()) ):
-        print_header()
-        print('\tDifferent dimensions:', h1.GetDimension(), h2.GetDimension())
+        if(verbosity >= 1):
+            print_header()
+            print('\tDifferent dimensions:', h1.GetDimension(), h2.GetDimension())
         return
 
     ncells1 = h1.GetNcells()
     ncells2 = h2.GetNcells()
     if(not (ncells1 == ncells2) ):
-        print_header()
-        print('\tDifferent Ncells:', ncells1, ncells2)
+        if(verbosity >= 1):
+            print_header()
+            print('\tDifferent Ncells:', ncells1, ncells2)
         return
 
     # compare bin by bin
@@ -121,12 +123,13 @@ def diff_full(keys1, keys2, **kwargs):
         if(diff_proc.returncode == 2):
             print('ERROR in diff')
             exit(ExitStatus.INTERNAL_ERROR.value)
-        print( diff_proc.stdout )
+        if(verbosity >= 1):
+            print( diff_proc.stdout )
     return diff_proc.returncode
 
 
 def get_fmt(a, b, tot):
-    return '{:%dd}/{:%dd} ({:5.1f}) %%' % (
+    return '{:%dd}/{:%dd} ({:5.1f} %%)' % (
         max(
             len(str(a)),
             len(str(b))
@@ -233,7 +236,7 @@ def main():
     stat1 = os.fstat(tf1.GetFd())
     stat2 = os.fstat(tf2.GetFd())
     if(stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev):
-        print('The two files are the same!')
+        logging.error('The two files are the same!')
         tf1.Close()
         tf2.Close()
         return ExitStatus.CLARG_ERROR.value
@@ -263,16 +266,18 @@ def main():
 
     # Select keys
     matching_keys = keys1 | keys2
-    print('Total keys =', len(matching_keys))
+    if(args.verbosity >= 1):
+        print('Total keys =', len(matching_keys))
 
     if(args.plot is not None):
         matching_keys = { k for k in keys1|keys2 if args.plot.search(k)}
         if(len(matching_keys) == 0):
             tf1.Close()
             tf2.Close()
-            print('ERROR: no keys matching', args.plot.pattern)
+            logging.error('no keys matching "%s"', args.plot.pattern)
             return ExitStatus.CLARG_ERROR.value  # User specified a regex which does not match anything
-        print('... of which matching regex', args.plot.pattern, '=', Colour.green(str(len(matching_keys))))
+        if(args.verbosity >= 1):
+            print('... of which matching regex', args.plot.pattern, '=', Colour.green(str(len(matching_keys))))
 
     if(args.plot_exclude is not None):
         # plot_exclude_regex_list = [re.compile(e) for e in args.plot_exclude]
@@ -281,10 +286,12 @@ def main():
         if(len(matching_keys) == 0):
             tf1.Close()
             tf2.Close()
-            print('ERROR: al keys excluded by', args.plot_exclude.pattern)
+            logging.error('all keys excluded by "%s"', args.plot_exclude.pattern)
             return ExitStatus.CLARG_ERROR.value
-        print('... of which not matching regex', args.plot_exclude.pattern, '=', Colour.green(str(len(matching_keys))))
-    print()
+        if(args.verbosity >= 1):
+            print('... of which not matching regex', args.plot_exclude.pattern, '=', Colour.green(str(len(matching_keys))))
+    if(args.verbosity >= 1):
+        print()
 
     # Actual in-depth comparison of plots
     missing_keys = {1:matching_keys - keys1, 2: matching_keys - keys2}
@@ -304,9 +311,9 @@ def main():
     tf1.Close()
     tf2.Close()
 
-    print_missing(missing_keys[1], missing_keys[2], common=common_keys, verbosity=args.verbosity, total=len(matching_keys))
-    print()
-    print_content_status(content_status)
+    if(args.verbosity >= 1):
+        print_missing(missing_keys[1], missing_keys[2], common=common_keys, verbosity=args.verbosity, total=len(matching_keys))
+        print_content_status(content_status)
 
     if  (content_status['BAD'] > 0):
         return ExitStatus.DIFFERENCE_COMMON.value
