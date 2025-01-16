@@ -128,11 +128,11 @@ def diff_full(keys1, keys2, **kwargs):
     return diff_proc.returncode
 
 
-def get_fmt(a, b, tot):
+def get_fmt(*args):
+    tot = args[-1]
     return '{:%dd}/{:%dd} ({:5.1f} %%)' % (
         max(
-            len(str(a)),
-            len(str(b))
+            (len(str(a)) for a in args[:-1])
         ),
         len(str(tot)),
     )
@@ -142,24 +142,24 @@ def print_missing(missing1, missing2, common, verbosity=0, **kwargs):
     print_every_plot        = verbosity >= 2
     print_every_plot_common = verbosity >= 4
     total = int( kwargs['total'] )
-    fmt = get_fmt( len(missing1), len(missing2), total )
+    fmt = get_fmt( len(missing1), len(missing2), len(common), total )
 
     if(len(missing1) > 0):
-        print( Colour.red('Missing'), 'from 1:', fmt.format(len(missing1), total, 100*len(missing1)/total) )
+        print( Colour.red('Missing'), 'from 1  :', fmt.format(len(missing1), total, 100*len(missing1)/total) )
         if(print_every_plot):
             for plot in sorted(missing1):
                 print('\t'+plot)
             print()
 
     if(len(missing2) > 0):
-        print( Colour.red('Missing'), 'from 2:', fmt.format(len(missing2), total, 100*len(missing2)/total) )
+        print( Colour.red('Missing'), 'from 2  :', fmt.format(len(missing2), total, 100*len(missing2)/total) )
         if(print_every_plot):
             for plot in sorted(missing2):
                 print('\t'+plot)
             print()
 
     if(len(common) > 0): # and ((len(missing1) > 0 or len(missing2) > 0) or verbosity >= 2)):
-        print( Colour.green('Common'), 'in 1, 2:', fmt.format(len(common)  , total, 100*len(common  )/total) )
+        print( Colour.green('Common'), 'in 1, 2  :', fmt.format(len(common)  , total, 100*len(common  )/total) )
         if(print_every_plot_common):
             for plot in sorted(common):
                 print('\t'+plot)
@@ -177,10 +177,10 @@ def print_content_status(content_status):
 
     fmt = get_fmt(ok, bad, tot)
 
-    print(Colour.green('Same content')+'  :', fmt.format(ok , tot, 100 * ok /tot))
+    print('    '+Colour.green('Same content')+':', fmt.format(ok , tot, 100 * ok /tot))
     if(bad == 0):
         return
-    print(Colour.red  ('Different')+'     :', fmt.format(bad, tot, 100 * bad/tot))
+    print('    '+Colour.red  ('Different')+'   :', fmt.format(bad, tot, 100 * bad/tot))
 
 
 def diff_set(keys1, keys2, **kwargs):
