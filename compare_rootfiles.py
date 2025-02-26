@@ -42,7 +42,7 @@ class ExitStatus(Enum):
     DIFFERENCE_COMMON = 13 # This is bad
 
 
-def compare_plot(h1, h2, verbosity=0, **kwargs):
+def compare_plot(h1, h2, verbosity=0, threshold=1e-3, **kwargs):
     '''
     Detailed comparison of two TH1, bin by bin
     '''
@@ -89,7 +89,8 @@ def compare_plot(h1, h2, verbosity=0, **kwargs):
     for b in range(0, ncells1):
         c1 = h1.GetBinContent(b)
         c2 = h2.GetBinContent(b)
-        if(c1 != c2):
+        ok = (c1 == 0 and abs(c2) < threshold) or (c1 != 0 and (c2/c1 - 1) < threshold)
+        if(not ok):
             ok_content = False
             if(print_every_bin):
                 print_header()
@@ -209,6 +210,7 @@ def parse_args():
     parser.add_argument(      '--plot-exclude', type=re.compile, help='Second regexp to exclude some of the selected plots')
     parser.add_argument(      '--diff', action='store_true', help='Use diff to compare the sorted lists of keys')
     parser.add_argument(      '--set' , action='store_true', help='Use the simpler comparison, which just checks if both files have the same keys')
+    parser.add_argument(      '--threshold', type=float, default=1e-3, help='Tolerance, expressed as fraction, for considering bin yields as equal (default: %(default)s).')
     parser.add_argument('-v', '--verbose', dest='verbosity',
                         action='count', default=1,
                         help='increase verbosity')
@@ -304,7 +306,7 @@ def main():
             h1 = tf1.Get(plot)
             h2 = tf2.Get(plot)
             assert h1 and h2, 'Unable to retrieve both plots "'+plot+'" from the files'
-            ok_content = compare_plot(h1, h2, verbosity=args.verbosity)
+            ok_content = compare_plot(h1, h2, **vars(args))
             if(ok_content): content_status['OK']  += 1
             else          : content_status['BAD'] += 1
 
