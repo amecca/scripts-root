@@ -42,7 +42,7 @@ class ExitStatus(Enum):
     DIFFERENCE_COMMON = 13 # This is bad
 
 
-def compare_plot(h1, h2, verbosity=0, threshold=1e-3, **kwargs):
+def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
     '''
     Detailed comparison of two TH1, bin by bin
     '''
@@ -67,45 +67,55 @@ def compare_plot(h1, h2, verbosity=0, threshold=1e-3, **kwargs):
             print('\tDifferent dimensions:', h1.GetDimension(), h2.GetDimension())
         return
 
-    ncells1 = h1.GetNcells()
-    ncells2 = h2.GetNcells()
-    if(not (ncells1 == ncells2) ):
-        if(verbosity >= 1):
-            print_header()
-            print('\tDifferent Ncells:', ncells1, ncells2)
-        return
-
-    # compare bin by bin
-    print_wrong_plot = verbosity >= 2
+    print_wrong_plot = verbosity >= 2 if mode == 'bin' else 1
     print_good_plot  = verbosity >= 4
     print_every_bin  = verbosity >= 3
     print_ok         = verbosity >= 5
+    print_ncells     = mode == 'bin' or (mode == 'integral' and verbosity >= 2)
+
+    ncells1 = h1.GetNcells()
+    ncells2 = h2.GetNcells()
+    ok_ncells = ncells1 == ncells2
+    if(not ok_ncells and print_ncells):
+        print('{:48s} DIFFERENT Ncells! {:d} - {:d}'.format(name, ncells1, ncells2))
 
     fmt_ncells = '{:%dd}' % ( len(str(ncells1)) )
     fmt = '\t'+fmt_ncells+': {:.3e} - {:.3e} - diff = {:+.3e}'
 
     ok_content = True
 
-    for b in range(0, ncells1):
-        c1 = h1.GetBinContent(b)
-        c2 = h2.GetBinContent(b)
-        ok = (c1 == 0 and abs(c2) < threshold) or (c1 != 0 and (c2/c1 - 1) < threshold)
-        if(not ok):
-            ok_content = False
-            if(print_every_bin):
-                print_header()
-                print(fmt.format(b, c1, c2, c2-c1))
-            else:
-                break  # Don't need to continue
+    integral1 = h1.Integral(*[0, -1]*h1.GetDimension())
+    integral2 = h2.Integral(*[0, -1]*h1.GetDimension())
+    if  (mode == 'integral'):
+        if(integral1 == integral2):
+            fracdiff = 0
+        else:
+            fracdiff = (integral2/integral1 - 1) if integral1 != 0 else float('nan')
+        ok_content = abs(fracdiff) < threshold
+    elif(mode == 'bin'):
+        if(not ok_ncells): return False
+        # compare bin by bin
+        for b in range(0, ncells1):
+            c1 = h1.GetBinContent(b)
+            c2 = h2.GetBinContent(b)
+            ok = (c1 == 0 and abs(c2) < threshold) or (c1 != 0 and (c2/c1 - 1) < threshold)
+            if(not ok):
+                ok_content = False
+                if(print_every_bin):
+                    print_header()
+                    print(fmt.format(b, c1, c2, c2-c1))
+                else:
+                    break  # Don't need to continue
+    else:
+        raise NotImplementedError('mode "%s"' %(mode))
 
-    if((print_wrong_plot or print_good_plot) and not print_every_bin):
+    if((print_wrong_plot or print_good_plot) and (mode == 'integral' or not print_every_bin)):
         if(not ok_content):
-            integral1 = h1.Integral(*[0, -1]*h1.GetDimension())
-            integral2 = h2.Integral(*[0, -1]*h1.GetDimension())
-            if(integral1 == integral2):
-                print('{:48s} DIFFERENT!  But same integral: {:6.3g}'.format(name, integral1))
+            fracdiff = (integral2/integral1 - 1) if integral1 != 0 else float('nan')
+            if(mode == 'bin' and fracdiff < threshold):
+                print('{:48s} DIFFERENT!  But same integral: {:6.3g} (+- {:%.3g}%)'.format(name, integral1, 100*threshold))
             else:
-                print('{:48s} DIFFERENT!  Integral --> h1: {:6.3g} - h2: {:6.3g}  ({:+6.3g} = {:+4.3g}%)'.format(name, integral1, integral2, integral2-integral1, 100*(integral2/integral1 - 1)))
+                print('{:48s} DIFFERENT!  Integral --> h1: {:6.3g} - h2: {:6.3g}  ({:+6.3g} = {:+4.3g}%)'.format(name, integral1, integral2, integral2-integral1, 100*fracdiff))
         elif(print_good_plot):
             print('{:48s} equal     '.format(name)) #  ' Integrals --> h1: {:.2g} - h2: {:.2g}'.format(plot, h1.Integral(0, -1), h2.Integral(0, -1)))
 
@@ -206,6 +216,11 @@ def parse_args():
 
     parser.add_argument('file1', metavar='FILE1')
     parser.add_argument('file2', metavar='FILE2')
+    parser.add_argument('-m', '--mode', default='bin', choices=['bin', 'integral'], type=str.lower,
+                        help='How to compare two plots: "bin": check bin-by-bin;'
+                        ' "integral": check only the integral (useful for histograms with different binning).'
+                        ' Default: %(default)s.')
+    parser.add_argument(      '--integral', dest='mode', action='store_const', const='integral', help='Set the mode to integral.')
     parser.add_argument('-p', '--plot'        , type=re.compile, help='Compare a specific plot; accepts a regexp')
     parser.add_argument(      '--plot-exclude', type=re.compile, help='Second regexp to exclude some of the selected plots')
     parser.add_argument(      '--diff', action='store_true', help='Use diff to compare the sorted lists of keys')
