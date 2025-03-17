@@ -31,13 +31,23 @@ class Colour:
     s_warn       = '\033[0;43m'    
     s_evidence   = '\033[1;91;103m'
 
+    @staticmethod
     def white    (st): return Colour.s_white     + str(st) + Colour.s_terminator
+    @staticmethod
     def red      (st): return Colour.s_red       + str(st) + Colour.s_terminator
+    @staticmethod
     def green    (st): return Colour.s_green     + str(st) + Colour.s_terminator
+    @staticmethod
     def yellow   (st): return Colour.s_yellow    + str(st) + Colour.s_terminator
+    @staticmethod
     def blue     (st): return Colour.s_blue      + str(st) + Colour.s_terminator
+    @staticmethod
     def violet   (st): return Colour.s_violet    + str(st) + Colour.s_terminator
+    @staticmethod
     def important(st): return Colour.s_important + str(st) + Colour.s_terminator
+    @staticmethod
     def ok       (st): return Colour.s_ok        + str(st) + Colour.s_terminator
+    @staticmethod
     def warn     (st): return Colour.s_warn      + str(st) + Colour.s_terminator
+    @staticmethod
     def evidence (st): return Colour.s_evidence  + str(st) + Colour.s_terminator

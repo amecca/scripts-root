@@ -47,6 +47,7 @@ def get_list_of_keys_deep(tfile):
     for k in tfile.GetListOfKeys():
         # logging.debug('key: %s', k.GetName())
         if k.IsFolder():
-            yield from get_keys_in_folder(k.ReadObj(), path=k.GetName())
+            # Python2 equivalent of "yield from"
+            for k in get_keys_in_folder(k.ReadObj(), path=k.GetName()): yield k
         else:
             yield k.GetName()

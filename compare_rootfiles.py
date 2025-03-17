@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 ################################################################################
 #  Compare two root files and highlight differeces in keys and contents of TH1
@@ -21,7 +21,7 @@
 from argparse import ArgumentParser
 import os
 import re
-from subprocess import run
+import sys
 from tempfile import NamedTemporaryFile
 from enum import Enum
 import logging
@@ -29,6 +29,12 @@ import ROOT
 
 from mycolour import Colour
 from rootutils import get_list_of_keys_deep
+
+if(sys.version_info.major == 2):
+    from utils import subprocess_run as run
+else:
+    from subprocess import run
+
 
 class ExitStatus(Enum):
     IDENTICAL         = 0
@@ -49,22 +55,19 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
     name = h1.GetName()
 
     printed_header = False
-    def print_header():
-        nonlocal printed_header
-        if(not printed_header):
-            print('#', name, '#')
-            printed_header = True
 
     if( any([not h.Class().InheritsFrom('TH1') for h in (h1, h2)]) ):
         if(verbosity >= 1):
             print_header()
-            print('\tNot histograms: h1 =', h1.ClassName(), ', h2 =', h2.ClassName())
+            print('\tNot histograms: h1 = %s, h2 = %s' %(h1.ClassName(), h2.ClassName()))
         return
 
     if(not (h1.GetDimension() == h2.GetDimension()) ):
         if(verbosity >= 1):
-            print_header()
-            print('\tDifferent dimensions:', h1.GetDimension(), h2.GetDimension())
+            if(not printed_header):
+                print('# %s #' %(name))
+                printed_header = True
+            print('\tDifferent dimensions: %d %d' %(h1.GetDimension(), h2.GetDimension()))
         return
 
     print_wrong_plot = verbosity >= 2 if mode == 'bin' else 1
@@ -102,7 +105,9 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
             if(not ok):
                 ok_content = False
                 if(print_every_bin):
-                    print_header()
+                    if(not printed_header):
+                        print('# %s #' %(name))
+                        printed_header = True
                     print(fmt.format(b, c1, c2, c2-c1))
                 else:
                     break  # Don't need to continue
@@ -120,7 +125,9 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
             print('{:48s} equal     '.format(name)) #  ' Integrals --> h1: {:.2g} - h2: {:.2g}'.format(plot, h1.Integral(0, -1), h2.Integral(0, -1)))
 
     if(ok_content and print_ok):
-        print_header()
+        if(not printed_header):
+            print('# %s #' %(name))
+            printed_header = True
         print('\tOK')
 
     return ok_content
@@ -156,21 +163,21 @@ def print_missing(missing1, missing2, common, verbosity=0, **kwargs):
     fmt = get_fmt( len(missing1), len(missing2), len(common), total )
 
     if(len(missing1) > 0):
-        print( Colour.red('Missing'), 'from 1  :', fmt.format(len(missing1), total, 100*len(missing1)/total) )
+        print( Colour.red('Missing')+' from 1  : '+fmt.format(len(missing1), total, 100*len(missing1)/total) )
         if(print_every_plot):
             for plot in sorted(missing1):
                 print('\t'+plot)
             print()
 
     if(len(missing2) > 0):
-        print( Colour.red('Missing'), 'from 2  :', fmt.format(len(missing2), total, 100*len(missing2)/total) )
+        print( Colour.red('Missing')+' from 2  : '+fmt.format(len(missing2), total, 100*len(missing2)/total) )
         if(print_every_plot):
             for plot in sorted(missing2):
                 print('\t'+plot)
             print()
 
     if(len(common) > 0): # and ((len(missing1) > 0 or len(missing2) > 0) or verbosity >= 2)):
-        print( Colour.green('Common'), 'in 1, 2  :', fmt.format(len(common)  , total, 100*len(common  )/total) )
+        print( Colour.green('Common')+' in 1, 2  : '+fmt.format(len(common)  , total, 100*len(common  )/total) )
         if(print_every_plot_common):
             for plot in sorted(common):
                 print('\t'+plot)
@@ -188,10 +195,10 @@ def print_content_status(content_status):
 
     fmt = get_fmt(ok, bad, tot)
 
-    print('    '+Colour.green('Same content')+':', fmt.format(ok , tot, 100 * ok /tot))
+    print('    '+Colour.green('Same content')+': '+fmt.format(ok , tot, 100 * ok /tot))
     if(bad == 0):
         return
-    print('    '+Colour.red  ('Different')+'   :', fmt.format(bad, tot, 100 * bad/tot))
+    print('    '+Colour.red  ('Different')+'   : '+fmt.format(bad, tot, 100 * bad/tot))
 
 
 def diff_set(keys1, keys2, **kwargs):
@@ -208,7 +215,7 @@ def diff_set(keys1, keys2, **kwargs):
     elif(len(missing2) > 0):
         return ExitStatus.FIRST_MISS.value
     else:
-        ExitStatus.IDENTICAL.value
+        return ExitStatus.IDENTICAL.value
 
 
 def parse_args():
@@ -250,6 +257,7 @@ def main():
 
     tf1 = ROOT.TFile(args.file1, 'READ')
     tf2 = ROOT.TFile(args.file2, 'READ')
+    logging.debug('fd 1 = %d - fd 2 = %d', tf1.GetFd(), tf2.GetFd())
     stat1 = os.fstat(tf1.GetFd())
     stat2 = os.fstat(tf2.GetFd())
     if(stat1.st_ino == stat2.st_ino and stat1.st_dev == stat2.st_dev):
@@ -284,7 +292,7 @@ def main():
     # Select keys
     matching_keys = keys1 | keys2
     if(args.verbosity >= 1):
-        print('Total keys =', len(matching_keys))
+        print('Total keys = %d' %(len(matching_keys)))
 
     if(args.plot is not None):
         matching_keys = { k for k in keys1|keys2 if args.plot.search(k)}
@@ -294,7 +302,7 @@ def main():
             logging.error('no keys matching "%s"', args.plot.pattern)
             return ExitStatus.CLARG_ERROR.value  # User specified a regex which does not match anything
         if(args.verbosity >= 1):
-            print('... of which matching regex', args.plot.pattern, '=', Colour.green(str(len(matching_keys))))
+            print('... of which matching regex %s = %s' %(args.plot.pattern, Colour.green(str(len(matching_keys)))))
 
     if(args.plot_exclude is not None):
         # plot_exclude_regex_list = [re.compile(e) for e in args.plot_exclude]
@@ -306,7 +314,7 @@ def main():
             logging.error('all keys excluded by "%s"', args.plot_exclude.pattern)
             return ExitStatus.CLARG_ERROR.value
         if(args.verbosity >= 1):
-            print('... of which not matching regex', args.plot_exclude.pattern, '=', Colour.green(str(len(matching_keys))))
+            print('... of which not matching regex %s = %s' %(args.plot_exclude.pattern, Colour.green(str(len(matching_keys)))))
     if(args.verbosity >= 1):
         print()
 
