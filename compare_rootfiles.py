@@ -101,7 +101,8 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
         for b in range(0, ncells1):
             c1 = h1.GetBinContent(b)
             c2 = h2.GetBinContent(b)
-            ok = (c1 == 0 and abs(c2) < threshold) or (c1 != 0 and (c2/c1 - 1) < threshold)
+            diff = abs(c2/c1 - 1) if c1 != 0 else abs(c2)
+            ok = (diff < threshold)
             if(not ok):
                 ok_content = False
                 if(print_every_bin):
@@ -118,7 +119,7 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
         if(not ok_content):
             fracdiff = (integral2/integral1 - 1) if integral1 != 0 else float('nan')
             if(mode == 'bin' and fracdiff < threshold):
-                print('{:48s} DIFFERENT!  But same integral: {:6.3g} (+- {:%.3g}%)'.format(name, integral1, 100*threshold))
+                print('{:48s} DIFFERENT!  But same integral: {:6.3g} (+- {:.3g}%)'.format(name, integral1, 100*threshold))
             else:
                 print('{:48s} DIFFERENT!  Integral --> h1: {:6.3g} - h2: {:6.3g}  ({:+6.3g} = {:+4.3g}%)'.format(name, integral1, integral2, integral2-integral1, 100*fracdiff))
         elif(print_good_plot):
