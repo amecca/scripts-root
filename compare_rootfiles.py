@@ -28,7 +28,7 @@ import logging
 import ROOT
 
 from mycolour import Colour
-from rootutils import get_list_of_keys_deep
+from rootutils import get_list_of_keys_deep, TH_integr_and_err
 
 if(sys.version_info.major == 2):
     from utils import subprocess_run as run
@@ -48,7 +48,7 @@ class ExitStatus(Enum):
     DIFFERENCE_COMMON = 13 # This is bad
 
 
-def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
+def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, check_error=False, **kwargs):
     '''
     Detailed comparison of two TH1, bin by bin
     '''
@@ -83,18 +83,25 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
         print('{:48s} DIFFERENT Ncells! {:d} - {:d}'.format(name, ncells1, ncells2))
 
     fmt_ncells = '{:%dd}' % ( len(str(ncells1)) )
-    fmt = '\t'+fmt_ncells+': {:.3e} - {:.3e} - diff = {:+.3e}'
+    fmt = '\t'+fmt_ncells+': {:.3e} - {:.3e} - diff = {:+.3e} | {:.3e} - {:.3e} - diff: {:+3e}'
 
     ok_content = True
 
-    integral1 = h1.Integral(*[0, -1]*h1.GetDimension())
-    integral2 = h2.Integral(*[0, -1]*h1.GetDimension())
+    integral1, error1 = TH_integr_and_err(h1, [0, -1]*h1.GetDimension())
+    integral2, error2 = TH_integr_and_err(h2, [0, -1]*h2.GetDimension())
     if  (mode == 'integral'):
         if(integral1 == integral2):
             fracdiff = 0
         else:
             fracdiff = (integral2/integral1 - 1) if integral1 != 0 else float('nan')
         ok_content = abs(fracdiff) < threshold
+
+        # if requested, check the error
+        if(ok_content and check_error):
+            if(error1 != error2):
+                fracdiff = (error2/error1 - 1) if error1 != 0 else float('nan')
+                ok_content = abs(fracdiff) < threshold
+            
     elif(mode == 'bin'):
         if(not ok_ncells): return False
         # compare bin by bin
@@ -103,13 +110,22 @@ def compare_plot(h1, h2, verbosity=0, mode='bin', threshold=1e-3, **kwargs):
             c2 = h2.GetBinContent(b)
             diff = abs(c2/c1 - 1) if c1 != 0 else abs(c2)
             ok = (diff < threshold)
+
+            if(check_error):
+                e1 = h1.GetBinError(b)
+                e2 = h2.GetBinError(b)
+                diff = abs(e2/e1 - 1) if e1 != 0 else abs(e2)
+                ok = ok and (diff < threshold)
+            else:
+                e1 = e2 = 0.
+
             if(not ok):
                 ok_content = False
                 if(print_every_bin):
                     if(not printed_header):
                         print('# %s #' %(name))
                         printed_header = True
-                    print(fmt.format(b, c1, c2, c2-c1))
+                    print(fmt.format(b, c1, c2, c2-c1, e1, e2, e2-e1))
                 else:
                     break  # Don't need to continue
     else:
@@ -229,6 +245,7 @@ def parse_args():
                         ' "integral": check only the integral (useful for histograms with different binning).'
                         ' Default: %(default)s.')
     parser.add_argument(      '--integral', dest='mode', action='store_const', const='integral', help='Set the mode to integral.')
+    parser.add_argument(      '--error', dest='check_error', action='store_true', help='Compare also the error')
     parser.add_argument('-p', '--plot'        , type=re.compile, help='Compare a specific plot; accepts a regexp')
     parser.add_argument(      '--plot-exclude', type=re.compile, help='Second regexp to exclude some of the selected plots')
     parser.add_argument(      '--diff', action='store_true', help='Use diff to compare the sorted lists of keys')
