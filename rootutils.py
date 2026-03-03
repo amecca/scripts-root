@@ -19,6 +19,7 @@
 ################################################################################
 
 import os
+from ctypes import c_double
 import ROOT
 
 class TFileContext(object):
@@ -51,3 +52,14 @@ def get_list_of_keys_deep(tfile):
             for k in get_keys_in_folder(k.ReadObj(), path=k.GetName()): yield k
         else:
             yield k.GetName()
+
+
+def TH_integr_and_err(h : ROOT.TH1, ranges : list[list[int]] = None):
+    assert h.Class().InheritsFrom('TH1'), 'Unexpected type <%s>' %(h.Class().GetName())
+    if ranges is None:
+        ranges = [0, -1]*h1.GetDimension()
+
+    c_err = c_double(0.)
+    integr = h.IntegralAndError(*ranges, c_err)
+
+    return integr, c_err.value
