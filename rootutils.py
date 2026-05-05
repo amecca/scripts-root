@@ -41,7 +41,9 @@ def get_list_of_keys_deep(tfile):
             if(k.IsFolder()):
                 newpath = os.path.join(path, k.GetName())
                 # logging.debug('Recursing "%s", newpath: "%s"', k.GetName(), newpath)
-                yield get_keys_in_folder(k.ReadObj(), path=newpath)
+
+                # We would really like to use yield from, but we need to be compatible with python2...
+                for k in get_keys_in_folder(k.ReadObj(), path=newpath): yield k
             else:
                 yield os.path.join(path, k.GetName())
 
